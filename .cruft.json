@@ -1,0 +1,27 @@
+{
+  "template": "https://github.com/MicaelJarniac/crustypy",
+  "commit": "81797f153c8d485ec930eaeff90cae60509c1ec6",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "full_name": "Micael Jarniac",
+      "email": "micael@jarniac.dev",
+      "github_username": "MicaelJarniac",
+      "year": "2025",
+      "project_name": "IR Utils",
+      "project_slug": "ir_utils",
+      "project_distribution_name": "ir-utils",
+      "project_short_description": "Utilities for working with IR data.",
+      "version": "0.0.0",
+      "shields_url": "https://img.shields.io",
+      "discord_invite": "",
+      "report_method": "micael@jarniac.dev",
+      "__github_path": "MicaelJarniac/ir-utils",
+      "__github_url": "https://github.com/MicaelJarniac/ir-utils",
+      "__readthedocs_name": "ir-utils",
+      "_template": "https://github.com/MicaelJarniac/crustypy",
+      "_commit": "81797f153c8d485ec930eaeff90cae60509c1ec6"
+    }
+  },
+  "directory": null
+}
