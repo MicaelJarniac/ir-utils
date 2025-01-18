@@ -1,10 +1,9 @@
 # Source: https://gist.github.com/vills/590c154b377ac50acab079328e4ddaf9
 
-"""
-Based on incredible works:
+"""Based on incredible works:
 * @mildsunrise (https://gist.github.com/mildsunrise/1d576669b63a260d2cff35fda63ec0b5)
 * @elupus (https://github.com/elupus/irgen)
-(thank you!)
+(thank you!).
 
 Script to convert Broadlink base64 encoded remote codes into a format that can be used in Tuya's IR Blasters (ZS06, ZS08, TS1201, UFO-R11).
 
@@ -25,6 +24,8 @@ from bisect import bisect
 from itertools import islice
 from os.path import basename
 from struct import pack
+
+from loguru import logger
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -71,8 +72,7 @@ def decode_broadlink_base64(data):
 
 
 def encode_tuya_ir(signal: list[int], compression_level=2) -> str:
-    """
-    Encodes an IR signal (see `decode_tuya_ir`)
+    """Encodes an IR signal (see `decode_tuya_ir`)
     into an IR code string for a Tuya blaster.
     """
     payload = b"".join(pack("<H", t) for t in signal)
@@ -81,19 +81,19 @@ def encode_tuya_ir(signal: list[int], compression_level=2) -> str:
     return encodebytes(payload).decode("ascii").replace("\n", "")
 
 
-def emit_literal_blocks(out: io.FileIO, data: bytes):
+def emit_literal_blocks(out: io.FileIO, data: bytes) -> None:
     for i in range(0, len(data), 32):
         emit_literal_block(out, data[i : i + 32])
 
 
-def emit_literal_block(out: io.FileIO, data: bytes):
+def emit_literal_block(out: io.FileIO, data: bytes) -> None:
     length = len(data) - 1
     assert 0 <= length < (1 << 5)
     out.write(bytes([length]))
     out.write(data)
 
 
-def emit_distance_block(out: io.FileIO, length: int, distance: int):
+def emit_distance_block(out: io.FileIO, length: int, distance: int) -> None:
     distance -= 1
     assert 0 <= distance < (1 << 13)
     length -= 2
@@ -109,13 +109,12 @@ def emit_distance_block(out: io.FileIO, length: int, distance: int):
 
 
 def compress(out: io.FileIO, data: bytes, level=2):
-    """
-    Takes a byte string and outputs a compressed "Tuya stream".
+    """Takes a byte string and outputs a compressed "Tuya stream".
     Implemented compression levels:
     0 - copy over (no compression, 3.1% overhead)
     1 - eagerly use first length-distance pair found (linear)
     2 - eagerly use best length-distance pair found
-    3 - optimal compression (n^3)
+    3 - optimal compression (n^3).
     """
     if level == 0:
         return emit_literal_blocks(out, data)
@@ -174,12 +173,12 @@ def compress(out: io.FileIO, data: bytes, level=2):
             else:
                 pos += 1
         emit_literal_blocks(out, data[block_start:pos])
-        return
+        return None
 
     # use topological sort to find shortest path
     predecessors = [(0, None, None)] + [None] * len(data)
 
-    def put_edge(cost, length, distance):
+    def put_edge(cost, length, distance) -> None:
         npos = pos + length
         cost += predecessors[pos][0]
         current = predecessors[npos]
@@ -205,11 +204,14 @@ def compress(out: io.FileIO, data: bytes, level=2):
             emit_literal_block(out, data[pos : pos + length])
         else:
             emit_distance_block(out, length, distance)
+    return None
 
 
-def main():
+def main() -> None:
     if len(sys.argv) != 2:
-        print(f"Usage: python {basename(__file__)} <broadlink_base64_encoded_string>")
+        logger.info(
+            f"Usage: python {basename(__file__)} <broadlink_base64_encoded_string>",
+        )
         sys.exit(1)
 
     raw_data = list(decode_broadlink_base64(sys.argv[1]))
