@@ -1,67 +1,31 @@
-# Source: https://gist.github.com/mildsunrise/1d576669b63a260d2cff35fda63ec0b5
+# Source: https://gist.github.com/svyatogor/7839d00303998a9fa37eb48494dd680f?permalink_comment_id=5153002#gistcomment-5153002
 
 import base64
 import io
+import json
+import sys
 from bisect import bisect
-from struct import pack, unpack
+from math import ceil
+from struct import pack
+
+from loguru import logger
+
+BRDLNK_UNIT = 269 / 8192
+
 
 # MAIN API
+def filter(x):
+    return [i for i in x if i < 65535]
 
 
-def decode_ir(code: str) -> list[int]:
-    """Decodes an IR code string from a Tuya blaster.
-    Returns the IR signal as a list of µs durations,
-    with the first duration belonging to a high state.
-    """
-    payload = base64.decodebytes(code.encode("ascii"))
-    payload = decompress(io.BytesIO(payload))
+def encode_ir(command: str) -> str:
+    # command = "JgC8AXE5DioPDg0PDQ8OKw0PDg4ODw0PDSsODw0rDisNDw0sDSsOKw0rDisNDwwQDSwMEA0QDBAMEAwQDRAMLAwtDSsOKwwQDBANEAwQDBANEAwQDBAMEA0QDBAMEAwQDRAMEAwQDRAMEAwQDBANEAwQDBAMEA4PDSsODw0PDQ8ODg4PDQ8NAAPNcjgOKg8ODg4ODg8qDg4PDQ8NDw4OKg8ODioPKg4ODykPKg8pDyoPKg4ODw0PKg4ODw0PDg4ODg4PDQ8ODg4PDQ8ODg4ODg8NDw4ODg8NDw0PDg4ODw0PDg4ODg4PDQ8qDw0PDQ8ODioPKg4ODyoODg8NDw0PDg4ODw0PDg4ODg4PDQ8ODg4PDQ8ODg4OKg8ODioPDQ8ODg4PDQ8ODg4ODg8NDw4ODg8NDw0PDg4ODw0PDg4ODg4PDQ8ODg4PDQ8ODg4ODg8NDw4ODg8NDw0PDg4ODw0PDg4ODg4PDQ8ODg4PDQ8NDw4ODg8NDw4ODg4ODw0PDg4ODg4PDQ8ODg4PKg4qDw0PDg4ODg4PDg4ODg4ODg8ODg4NDw4ODg8NDw0PDg8NDw0rDisNKw4rDg4OKw0rDgANBQAAAAAAAAAAAAAAAA=="
+    signal = filter(get_raw_from_broadlink(base64.b64decode(command).hex()))
 
-    signal = []
-    while payload:
-        assert len(payload) >= 2, f"garbage in decompressed payload: {payload.hex()}"
-        signal.append(unpack("<H", payload[:2])[0])
-        payload = payload[2:]
-    return signal
-
-
-def encode_ir(signal: list[int], compression_level=2) -> str:
-    """Encodes an IR signal (see `decode_tuya_ir`)
-    into an IR code string for a Tuya blaster.
-    """
     payload = b"".join(pack("<H", t) for t in signal)
-    compress(out := io.BytesIO(), payload, compression_level)
+    compress(out := io.BytesIO(), payload, level=2)
     payload = out.getvalue()
     return base64.encodebytes(payload).decode("ascii").replace("\n", "")
-
-
-# DECOMPRESSION
-
-
-def decompress(inf: io.FileIO) -> bytes:
-    """Reads a "Tuya stream" from a binary file,
-    and returns the decompressed byte string.
-    """
-    out = bytearray()
-
-    while header := inf.read(1):
-        L, D = header[0] >> 5, header[0] & 0b11111
-        if not L:
-            # literal block
-            L = D + 1
-            data = inf.read(L)
-            assert len(data) == L
-        else:
-            # length-distance pair block
-            if L == 7:
-                L += inf.read(1)[0]
-            L += 2
-            D = (D << 8 | inf.read(1)[0]) + 1
-            data = bytearray()
-            while len(data) < L:
-                data.extend(out[-D:][: L - len(data)])
-        out.extend(data)
-
-    return bytes(out)
 
 
 # COMPRESSION
@@ -96,18 +60,18 @@ def emit_distance_block(out: io.FileIO, length: int, distance: int) -> None:
 
 def compress(out: io.FileIO, data: bytes, level=2):
     """Takes a byte string and outputs a compressed "Tuya stream".
-
     Implemented compression levels:
     0 - copy over (no compression, 3.1% overhead)
     1 - eagerly use first length-distance pair found (linear)
     2 - eagerly use best length-distance pair found
-    3 - optimal compression (n^3)
+    3 - optimal compression (n^3).
     """
     if level == 0:
         return emit_literal_blocks(out, data)
 
     W = 2**13  # window size
     L = 255 + 9  # maximum length
+
     def distance_candidates():
         return range(1, min(pos, W) + 1)
 
@@ -120,16 +84,20 @@ def compress(out: io.FileIO, data: bytes, level=2):
 
     def find_length_candidates():
         return ((find_length_for_distance(pos - d), d) for d in distance_candidates())
+
     def find_length_cheap():
         return next((c for c in find_length_candidates() if c[0] >= 3), None)
+
     def find_length_max():
         return max(find_length_candidates(), key=lambda c: (c[0], -c[1]), default=None)
 
     if level >= 2:
         suffixes = []
         next_pos = 0
+
         def key(n):
             return data[n:]
+
         def find_idx(n):
             return bisect(suffixes, key(n), key=key)
 
@@ -187,3 +155,49 @@ def compress(out: io.FileIO, data: bytes, level=2):
         else:
             emit_distance_block(out, length, distance)
     return None
+
+
+def get_raw_from_broadlink(string):
+    dec = []
+    unit = BRDLNK_UNIT  # 32.84ms units, or 2^-15s
+    length = int(string[6:8] + string[4:6], 16)  # Length of payload in little endian
+
+    i = 8
+    while i < length * 2 + 8:  # IR Payload
+        hex_value = string[i : i + 2]
+        if hex_value == "00":
+            hex_value = (
+                string[i + 2 : i + 4] + string[i + 4 : i + 6]
+            )  # Quick & dirty big-endian conversion
+            i += 4
+        dec.append(
+            ceil(int(hex_value, 16) / unit),
+        )  # Will be lower than initial value due to former round()
+        i += 2
+
+    return dec
+
+
+def process_commands(filename):
+    with open(filename) as file:
+        data = json.load(file)
+
+    def process_commands_recursively(commands):
+        processed_commands = {}
+        for key, value in commands.items():
+            if isinstance(value, str):
+                processed_commands[key] = encode_ir(value)
+            elif isinstance(value, dict):
+                processed_commands[key] = process_commands_recursively(value)
+            else:
+                processed_commands[key] = value
+
+        return processed_commands
+
+    data["commands"] = process_commands_recursively(data.get("commands", {}))
+    data["supportedController"] = "MQTT"
+    data["commandsEncoding"] = "Raw"
+    return json.dumps(data, indent=2)
+
+
+logger.debug(process_commands(sys.argv[1]))

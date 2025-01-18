@@ -45,7 +45,7 @@ sphinxcontrib-spelling = "^8.0.0"
 
 [tool.poetry.group.typing.dependencies]
 # Typing stubs go here
-mypy = "^1.4.0"
+mypy = "^1.14.1"
 nox = "^2023.4.22"
 pytest = "^7.4.0"
 pytest-benchmark = "^4.0.0"
@@ -59,6 +59,7 @@ pre-commit = "^3.3.3"
 [tool.poetry.group.dev.dependencies]
 nox = "^2023.4.22"
 python-semantic-release = "^8.0.2"
+ipython = "^8.31.0"
 
 [tool.poetry.urls]
 "Changelog" = "https://github.com/MicaelJarniac/ir-utils/blob/main/docs/CHANGELOG.md"

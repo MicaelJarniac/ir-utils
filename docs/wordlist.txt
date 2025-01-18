@@ -1,3 +1,7 @@
+Broadlink
+fastlz
+idxs
 IR Utils
 ir_utils
 ir-utils
+Tuya
