@@ -13,7 +13,7 @@ from datetime import timedelta
 from struct import pack, unpack
 from typing import TYPE_CHECKING
 
-from ir_utils.compression.fastlz import compress, decompress
+from ir_utils.compression import fastlz
 from ir_utils.protocols import BaseProtocol
 from ir_utils.utils import micros
 
@@ -30,14 +30,14 @@ class Tuya(BaseProtocol[str]):
     def from_raw(self, raw: list[timedelta]) -> str:
         """Convert from raw timings to Tuya IR code."""
         payload = b"".join(pack("<H", micros(t)) for t in raw)
-        compress(out := io.BytesIO(), payload, self.compression_level)
+        fastlz.compress(out := io.BytesIO(), payload, self.compression_level)
         payload = out.getvalue()
         return base64.encodebytes(payload).decode("ascii").replace("\n", "")
 
     def to_raw(self, data: str) -> list[timedelta]:
         """Convert Tuya IR code to raw timings."""
         payload = base64.decodebytes(data.encode("ascii"))
-        payload = decompress(io.BytesIO(payload))
+        payload = fastlz.decompress(io.BytesIO(payload))
 
         signal: list[timedelta] = []
         while payload:

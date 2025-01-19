@@ -1,7 +1,10 @@
 Broadlink
+elupus
 fastlz
 idxs
 IR Utils
 ir_utils
 ir-utils
+mildsunrise
+timedeltas
 Tuya

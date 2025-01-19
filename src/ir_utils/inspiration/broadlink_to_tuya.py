@@ -1,11 +1,14 @@
 # Source: https://gist.github.com/vills/590c154b377ac50acab079328e4ddaf9
 
-"""Based on incredible works:
+"""Broadlink to Tuya.
+
+Based on incredible works:
 * @mildsunrise (https://gist.github.com/mildsunrise/1d576669b63a260d2cff35fda63ec0b5)
 * @elupus (https://github.com/elupus/irgen)
 (thank you!).
 
-Script to convert Broadlink base64 encoded remote codes into a format that can be used in Tuya's IR Blasters (ZS06, ZS08, TS1201, UFO-R11).
+Script to convert Broadlink base64 encoded remote codes into a format that can be used
+in Tuya's IR Blasters (ZS06, ZS08, TS1201, UFO-R11).
 
 **Usage:**
     python3 broadlink_to_tuya.py <broadlink_base64_encoded_string>
@@ -14,7 +17,7 @@ Script to convert Broadlink base64 encoded remote codes into a format that can b
     python3 broadlink_to_tuya.py JgBmAG40DwwPDA8mEAsPJw8MDwwPDA8nDyYPDA8MDwwPJw8mEAsQCw8MDwwPDA8MDwwPDA8LEAsPDA8MDwwPJw8MDwwPCw8MDwwPDA8MDycPDA8LEAsQCw8nDwwPDA8MDwwPCxALDwANBQAA
 
 Broadlink's IR codes can be found in SmartIR repository (https://github.com/smartHomeHub/SmartIR)
-"""
+"""  # noqa: E501
 
 import io
 import logging
