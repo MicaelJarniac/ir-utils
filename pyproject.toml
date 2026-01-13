@@ -37,7 +37,7 @@ hypothesis = "^6.124.1"
 
 [tool.poetry.group.benchmarking.dependencies]
 asv = "^0.5.1"
-virtualenv = "^20.24.3"
+virtualenv = "^20.36.1"
 
 [tool.poetry.group.docs.dependencies]
 furo = "^2023.5.20"
